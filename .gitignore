@@ -1,0 +1,34 @@
+# Secrets — NEVER commit
+config/.env
+config/.env.*
+!config/.env.example
+*.pem
+*.key
+service_account*.json
+*credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Data — never commit raw enterprise data or local DBs
+data/
+logs/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+.dockerignore
