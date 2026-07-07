@@ -145,22 +145,39 @@ async def jira_search(jql: str, limit: int = 10) -> dict:
         return resp.json()
 
 
+def _demo_confluence(query: str) -> list[dict]:
+    return [
+        {"title": f"Process: {query}", "url": "https://confluence.example.com/page/123",
+         "excerpt": f"This article covers the process for {query} in detail..."},
+    ]
+
+
 async def confluence_search(query: str, limit: int = 5) -> dict:
     """Search Confluence documentation."""
     if not s.confluence_url:
-        return {"demo": True, "results": [
-            {"title": f"Process: {query}", "url": "https://confluence.example.com/page/123",
-             "excerpt": f"This article covers the process for {query} in detail..."},
-        ]}
-    token = base64.b64encode(f"{s.jira_email}:{s.confluence_token}".encode()).decode()
-    async with httpx.AsyncClient(timeout=T) as c:
-        resp = await c.get(
-            f"{s.confluence_url}/rest/api/content/search",
-            headers={"Authorization": f"Basic {token}"},
-            params={"cql": f'text ~ "{query}" AND type = "page"', "limit": limit, "expand": "excerpt"},
-        )
-        resp.raise_for_status()
-        return resp.json()
+        return {"demo": True, "results": _demo_confluence(query)}
+    try:
+        async with httpx.AsyncClient(timeout=T) as c:
+            resp = await c.get(
+                f"{s.confluence_url}/rest/api/content/search",
+                headers={"Authorization": f"Bearer {s.confluence_token}"},
+                params={"cql": f'text~"{query}"', "limit": limit, "expand": "excerpt"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        results = [
+            {
+                "title": item.get("title", ""),
+                "url": f"{s.confluence_url}{item.get('_links', {}).get('webui', '')}",
+                "excerpt": item.get("excerpt", ""),
+            }
+            for item in data.get("results", [])
+        ]
+        return {"results": results}
+    except httpx.HTTPError as e:
+        logger.warning("Confluence search failed: %s — falling back to demo data", e)
+        return {"demo": True, "note": f"Live Confluence unavailable ({e}); showing demo data.",
+                "results": _demo_confluence(query)}
 
 
 async def gcp_get_metrics(project: str, filter_str: str, minutes: int = 60) -> dict:
