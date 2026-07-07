@@ -205,6 +205,17 @@ async def test_tool_execute_demo_servicenow():
 
 
 @pytest.mark.asyncio
+async def test_confluence_search_demo_fallback_when_url_blank():
+    from mcp_gateway.tools import live_sources
+    live_sources.s.confluence_url = ""
+    result = await live_sources.confluence_search("vulnerability exception")
+    assert result["demo"] is True
+    assert "note" not in result
+    assert len(result["results"]) >= 1
+    assert "vulnerability exception" in result["results"][0]["title"]
+
+
+@pytest.mark.asyncio
 async def test_hitl_required_for_execution():
     from httpx import AsyncClient, ASGITransport
     from mcp_gateway.gateway import app
