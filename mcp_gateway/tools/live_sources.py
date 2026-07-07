@@ -87,45 +87,63 @@ async def dynatrace_get_service_metrics(service_name: str, from_time: str = "now
         return resp.json()
 
 
+def _demo_incidents() -> list[dict]:
+    return [
+        {"number": "INC0012345", "short_description": "SSO login failures affecting users in Corp Apps", "state": "2", "priority": "1", "opened_at": "2026-01-15 09:00:00"},
+        {"number": "INC0012310", "short_description": "Network latency spike in Production GCP", "state": "6", "priority": "2", "opened_at": "2026-01-10 14:30:00"},
+    ]
+
+
 async def servicenow_get_incidents(
     query: str = "active=true",
     limit: int = 10,
 ) -> dict:
     """Query live ServiceNow incidents."""
     if not s.servicenow_url:
-        return {"demo": True, "result": [
-            {"number": "INC0012345", "short_description": "SSO login failures affecting users in Corp Apps", "state": "2", "priority": "1", "opened_at": "2026-01-15 09:00:00"},
-            {"number": "INC0012310", "short_description": "Network latency spike in Production GCP", "state": "6", "priority": "2", "opened_at": "2026-01-10 14:30:00"},
-        ]}
-    async with httpx.AsyncClient(timeout=T) as c:
-        resp = await c.get(
-            f"{s.servicenow_url}/api/now/table/incident",
-            auth=(s.servicenow_user, s.servicenow_pass),
-            params={
-                "sysparm_query": query,
-                "sysparm_limit": limit,
-                "sysparm_fields": "number,short_description,state,priority,opened_at,resolved_at,cmdb_ci,assignment_group,close_notes",
-            },
-        )
-        resp.raise_for_status()
-        return resp.json()
+        return {"demo": True, "result": _demo_incidents()}
+    try:
+        async with httpx.AsyncClient(timeout=T) as c:
+            resp = await c.get(
+                f"{s.servicenow_url}/api/now/table/incident",
+                auth=(s.servicenow_user, s.servicenow_pass),
+                params={
+                    "sysparm_query": query,
+                    "sysparm_limit": limit,
+                    "sysparm_fields": "number,short_description,state,priority,opened_at,resolved_at,cmdb_ci,assignment_group,close_notes",
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPError as e:
+        logger.warning("ServiceNow incidents query failed: %s — falling back to demo data", e)
+        return {"demo": True, "note": f"Live ServiceNow unavailable ({e}); showing demo data.",
+                "result": _demo_incidents()}
+
+
+def _demo_cmdb_ci(ci_name: str) -> list[dict]:
+    return [
+        {"name": ci_name, "sys_class_name": "cmdb_ci_app_server", "environment": "Production",
+         "ip_address": "10.20.30.40", "os": "RHEL 8.6", "support_group": "Platform Engineering"},
+    ]
 
 
 async def servicenow_get_cmdb_ci(ci_name: str) -> dict:
     """Look up a Configuration Item in ServiceNow CMDB."""
     if not s.servicenow_url:
-        return {"demo": True, "result": [
-            {"name": ci_name, "sys_class_name": "cmdb_ci_app_server", "environment": "Production",
-             "ip_address": "10.20.30.40", "os": "RHEL 8.6", "support_group": "Platform Engineering"},
-        ]}
-    async with httpx.AsyncClient(timeout=T) as c:
-        resp = await c.get(
-            f"{s.servicenow_url}/api/now/table/cmdb_ci",
-            auth=(s.servicenow_user, s.servicenow_pass),
-            params={"sysparm_query": f"nameLIKE{ci_name}", "sysparm_limit": 5},
-        )
-        resp.raise_for_status()
-        return resp.json()
+        return {"demo": True, "result": _demo_cmdb_ci(ci_name)}
+    try:
+        async with httpx.AsyncClient(timeout=T) as c:
+            resp = await c.get(
+                f"{s.servicenow_url}/api/now/table/cmdb_ci",
+                auth=(s.servicenow_user, s.servicenow_pass),
+                params={"sysparm_query": f"nameLIKE{ci_name}", "sysparm_limit": 5},
+            )
+            resp.raise_for_status()
+            return resp.json()
+    except httpx.HTTPError as e:
+        logger.warning("ServiceNow CMDB lookup failed: %s — falling back to demo data", e)
+        return {"demo": True, "note": f"Live ServiceNow unavailable ({e}); showing demo data.",
+                "result": _demo_cmdb_ci(ci_name)}
 
 
 async def jira_search(jql: str, limit: int = 10) -> dict:

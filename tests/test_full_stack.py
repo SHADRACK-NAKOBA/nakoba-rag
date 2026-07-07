@@ -205,6 +205,27 @@ async def test_tool_execute_demo_servicenow():
 
 
 @pytest.mark.asyncio
+async def test_servicenow_incidents_demo_fallback_when_url_blank():
+    from mcp_gateway.tools import live_sources
+    live_sources.s.servicenow_url = ""
+    result = await live_sources.servicenow_get_incidents(limit=2)
+    assert result["demo"] is True
+    assert "note" not in result
+    assert len(result["result"]) >= 1
+    assert result["result"][0]["number"].startswith("INC")
+
+
+@pytest.mark.asyncio
+async def test_servicenow_cmdb_demo_fallback_when_url_blank():
+    from mcp_gateway.tools import live_sources
+    live_sources.s.servicenow_url = ""
+    result = await live_sources.servicenow_get_cmdb_ci("prod-web-01")
+    assert result["demo"] is True
+    assert "note" not in result
+    assert result["result"][0]["name"] == "prod-web-01"
+
+
+@pytest.mark.asyncio
 async def test_hitl_required_for_execution():
     from httpx import AsyncClient, ASGITransport
     from mcp_gateway.gateway import app
