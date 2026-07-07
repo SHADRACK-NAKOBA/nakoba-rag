@@ -78,6 +78,8 @@ class Settings(BaseSettings):
     sentinel_one_token: str = ""
     puppet_url: str = ""
     puppet_token: str = ""
+    leanix_url: str = ""
+    leanix_token: str = ""
 
 
 @lru_cache(maxsize=1)

@@ -138,9 +138,25 @@ def test_tool_registry_completeness():
     assert "servicenow_get_incidents" in TOOL_REGISTRY
     assert "confluence_search" in TOOL_REGISTRY
     assert "puppet_run_task" in TOOL_REGISTRY
+    assert "leanix_search_applications" in TOOL_REGISTRY
+    assert TOOL_REGISTRY["leanix_search_applications"].required_role == "l1_support"
+    assert not TOOL_REGISTRY["leanix_search_applications"].requires_hitl
     # Execution tools must require HITL
     assert TOOL_REGISTRY["puppet_run_task"].requires_hitl
     assert TOOL_REGISTRY["sentinel_isolate_host"].requires_hitl
+
+
+@pytest.mark.asyncio
+async def test_leanix_search_demo_fallback_when_not_configured():
+    from mcp_gateway.tools import live_sources
+    live_sources.s.leanix_url = ""
+    live_sources.s.leanix_token = ""
+    result = await live_sources.leanix_search_applications("CRM")
+    assert result["demo"] is True
+    assert "note" not in result
+    assert len(result["applications"]) == 3
+    assert all({"name", "description", "owner", "dependencies", "lifecycle"} <= a.keys()
+               for a in result["applications"])
 
 
 @pytest.mark.asyncio
