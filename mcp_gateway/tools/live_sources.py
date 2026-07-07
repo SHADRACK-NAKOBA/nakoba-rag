@@ -201,6 +201,56 @@ async def puppet_get_node_state(node_name: str) -> dict:
         return resp.json()
 
 
+def _demo_leanix() -> list[dict]:
+    return [
+        {"name": "Salesforce CRM", "description": "Primary customer relationship management platform",
+         "owner": "Sales Engineering", "dependencies": ["Health Cloud", "Marketing Cloud"], "lifecycle": "active"},
+        {"name": "Dynamics 365", "description": "ERP and finance operations suite",
+         "owner": "Finance IT", "dependencies": ["Power BI"], "lifecycle": "active"},
+        {"name": "Legacy MCP", "description": "Legacy master control platform pending decommission",
+         "owner": "Platform Engineering", "dependencies": [], "lifecycle": "endOfLife"},
+    ]
+
+
+async def leanix_search_applications(query: str) -> dict:
+    """Search the LeanIX application portfolio via the GraphQL API."""
+    if not s.leanix_url or not s.leanix_token:
+        return {"demo": True, "applications": _demo_leanix()}
+    gql = (
+        "query($q: String!) {"
+        " allFactSheets(factSheetType: Application, filter: {fullTextSearch: $q}) {"
+        " edges { node {"
+        " name description"
+        " ... on Application { lifecycle { asString } }"
+        " } } } }"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=T) as c:
+            resp = await c.post(
+                f"{s.leanix_url}/services/pathfinder/v1/graphql",
+                headers={"Authorization": f"Bearer {s.leanix_token}", "Content-Type": "application/json"},
+                json={"query": gql, "variables": {"q": query}},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        applications = []
+        edges = data.get("data", {}).get("allFactSheets", {}).get("edges", [])
+        for edge in edges:
+            node = edge.get("node", {})
+            applications.append({
+                "name": node.get("name", ""),
+                "description": node.get("description", ""),
+                "owner": node.get("owner", ""),
+                "dependencies": node.get("dependencies", []),
+                "lifecycle": (node.get("lifecycle") or {}).get("asString", ""),
+            })
+        return {"applications": applications}
+    except httpx.HTTPError as e:
+        logger.warning("LeanIX search failed: %s — falling back to demo data", e)
+        return {"demo": True, "note": f"Live LeanIX unavailable ({e}); showing demo data.",
+                "applications": _demo_leanix()}
+
+
 # ── EXECUTION TOOLS (HITL gated) ─────────────────────────────────────────────
 
 async def puppet_run_task(node: str, task: str, params: dict) -> dict:

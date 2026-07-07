@@ -12,7 +12,7 @@ from mcp_gateway.tools.live_sources import (
     zabbix_get_metrics, dynatrace_get_problems, dynatrace_get_service_metrics,
     servicenow_get_incidents, servicenow_get_cmdb_ci, jira_search,
     confluence_search, gcp_get_metrics, sentinel_get_threats, puppet_get_node_state,
-    puppet_run_task, sentinel_isolate_host,
+    puppet_run_task, sentinel_isolate_host, leanix_search_applications,
 )
 
 
@@ -132,6 +132,16 @@ TOOL_REGISTRY: dict[str, ToolDef] = {
             "limit": {"type": "integer", "required": False, "default": 5},
         },
         handler=lambda p, _u: confluence_search(p["query"], p.get("limit", 5)),
+    ),
+
+    "leanix_search_applications": ToolDef(
+        name="leanix_search_applications",
+        description="Search LeanIX application portfolio",
+        category="knowledge",
+        required_role="l1_support",
+        requires_hitl=False,
+        params={"query": {"type": "string", "required": True}},
+        handler=lambda p, _u: leanix_search_applications(p["query"]),
     ),
 
     # ── Security ───────────────────────────────────────────────
